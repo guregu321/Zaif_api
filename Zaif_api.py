@@ -119,6 +119,9 @@ class zaif:
         req["price"] = price
         req["amount"] = amount
         result = self.trading_api_call("trade", req)
+        while result['success'] == 0:
+            print("    retry bid")
+            result = self.trading_api_call("trade", req)
         return result    
     
     def cancel_order(self, orders, pair="eth_jpy", req={}):
