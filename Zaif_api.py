@@ -1,3 +1,14 @@
+import hashlib
+import hmac
+import json
+import time
+import urllib
+import requests
+
+##### Define global_nonce #####
+# Zaif only allows limited trading api calls per second
+global_nonce = int(time.time())
+
 class zaif:
     """API class for Zaif
     Be sure to use your own api_key and api_secret
