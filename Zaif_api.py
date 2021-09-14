@@ -120,7 +120,6 @@ class zaif:
         req["amount"] = amount
         result = self.trading_api_call("trade", req)
         while result['success'] == 0:
-            print("    retry bid")
             result = self.trading_api_call("trade", req)
         return result    
     
