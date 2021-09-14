@@ -5,10 +5,6 @@ import time
 import urllib
 import requests
 
-##### Define global_nonce #####
-# Zaif only allows limited trading api calls per second
-global_nonce = int(time.time())
-
 class zaif:
     """API class for Zaif
     Be sure to use your own api_key and api_secret
@@ -22,14 +18,16 @@ class zaif:
             "ETH" for eth            
         count: number of records to retrieve        
     """
-
+    
+    nonce = int(time.time())
+    
     def __init__(self, api_key, api_secret):
         self.api_key = api_key
         self.api_secret = api_secret
         self.get_api_endpoint = "https://api.zaif.jp/api/1/"
         self.trading_api_endpoint = "https://api.zaif.jp/tapi"
 
-    def get_api_call(self, method, path=""):
+    def get_api(self, method, path=""):
         """Request public information from Zaif
         Api key not required
         """
@@ -38,14 +36,22 @@ class zaif:
             url = url + "/" + path
         request_data = requests.get(url)
         return request_data
+    
+    def get_api_call(self, method, path=""):
+        result = self.get_api(method, path)
+        while 'json' not in result.headers.get('content-type'):
+            # print(result.text)
+            result = self.get_api(method, path)
+        result = result.json()               
+        return result
 
     def get_pair_info(self, pair="eth_jpy"):
-        pair_info = self.get_api_call("currency_pairs/{}".format(pair)).json()
+        pair_info = self.get_api_call("currency_pairs/{}".format(pair))
         pair_info = pair_info[0]
         return pair_info
     
     def get_board(self, pair="eth_jpy"):
-        board = self.get_api_call("depth", pair).json()
+        board = self.get_api_call("depth", pair)
         asks = board["asks"]
         bids = board["bids"]
         return asks, bids
@@ -56,14 +62,13 @@ class zaif:
         highest_bid = bids_price[0]
         return highest_bid    
 
-    def trading_api_call(self, method, req={}):
+    def trading_api(self, method, req={}):
         """Request personal information from Zaif
         Api key required
         """
-        global global_nonce
-        while global_nonce == int(time.time()):
+        while self.nonce == int(time.time()):
             time.sleep(0.1)
-        global_nonce = int(time.time())
+        self.nonce = int(time.time())
         req["method"] = method
         req["nonce"] = int(time.time())
         post_data = urllib.parse.urlencode(req).encode()
@@ -80,9 +85,16 @@ class zaif:
         )
         return request_data
 
+    def trading_api_call(self, method, req={}):
+        result = self.trading_api(method, req)
+        while 'json' not in result.headers.get('content-type'):
+            # print(result.text)
+            result = self.trading_api(method, req)
+        result = result.json()        
+        return result
+
     def my_balance(self, coin="jpy"):
-        result = self.trading_api_call("get_info").json()
-        #print(result["success"])
+        result = self.trading_api_call("get_info")
         data = {}
         funds = result["return"]["funds"]
         deposit = result["return"]["deposit"]
@@ -93,12 +105,12 @@ class zaif:
     def trade_history(self, pair="eth_jpy", count=10, req={}):
         req["currency_pair"] = pair
         req["count"] = count
-        result = self.trading_api_call("trade_history", req).json()
+        result = self.trading_api_call("trade_history", req)
         return result
 
     def active_orders(self, pair="eth_jpy", req={}):
         req["currency_pair"] = pair
-        result = self.trading_api_call("active_orders", req).json()
+        result = self.trading_api_call("active_orders", req)
         return result
     
     def trade(self, pair="eth_jpy", action="bid", price=0, amount=0, req={}):
@@ -106,14 +118,14 @@ class zaif:
         req["action"] = action
         req["price"] = price
         req["amount"] = amount
-        result = self.trading_api_call("trade", req).json()
+        result = self.trading_api_call("trade", req)
         return result    
     
     def cancel_order(self, orders, pair="eth_jpy", req={}):
         for order in orders:
             req["order_id"] = order
             req["currency_pair"] = pair
-            result = self.trading_api_call("cancel_order", req).json()
+            result = self.trading_api_call("cancel_order", req)
     
     def cancel_all_orders(self):
         orders = self.active_orders()
